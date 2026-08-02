@@ -7,3 +7,6 @@
 
 # Local server logs (if any)
 *.log
+
+# Lavish review artifacts (throwaway planning surfaces)
+.lavish/

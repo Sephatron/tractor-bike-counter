@@ -2,7 +2,7 @@
  * TBC service worker — cache-first so the app launches and runs with zero
  * network once installed. Bump CACHE when any cached file changes.
  */
-var CACHE = 'tbc-v1';
+var CACHE = 'tbc-v2';
 var ASSETS = [
   './',
   './index.html',

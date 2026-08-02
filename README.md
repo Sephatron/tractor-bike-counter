@@ -12,12 +12,30 @@ runtime, nothing leaves the device.
 2. **Count** — tap the **top half** for a tractor, the **bottom half** for a
    motorbike. **Undo** fixes a mis-tap on a pothole. The running totals show, but
    who's actually winning stays secret.
-3. **Finish** — reveals the scoreboard: the **overall champ** (smallest combined
-   miss), plus separate **Tractor Champ** and **Bike Champ**. Ties share the
-   title. **Play again** keeps the same crew and resets for the next leg.
+3. **Finish** — plays a little fanfare and reveals the results: the **overall
+   champ** (smallest combined miss), plus separate **Tractor Champ** and **Bike
+   Champ**. Ties share the title. **Play again** keeps the same crew and resets
+   for the next leg.
 
 Closest guess wins by absolute difference — no "bust" for over-guessing, so
 everyone stays in it to the end.
+
+## The scoreboard (📊)
+
+Every finished trip is logged, and the **📊** button — on the setup screen, and
+under "Play again" on the results screen — shows the **last 30 days**:
+
+- **Totals** for the window: trips played, tractors spotted, bikes spotted.
+- **Leaderboard** ranked by wins, then by average miss. Each row shows trips
+  played, average miss and best single-trip miss.
+- **Recent trips**: date, the counts, and who took the trophy.
+
+Anything older than 30 days is deleted automatically the next time the app
+opens — no timer needed, and nothing to tidy up. **Clear the record** wipes it
+all immediately.
+
+People are matched **by name**, so clearing the crew and retyping the same names
+keeps their history. Two different people sharing a name will share a row.
 
 ## Get it onto your Pixel
 
@@ -42,6 +60,8 @@ though the fullscreen/standalone polish needs the served route above.
 ## Settings (⚙️)
 
 - **Tap sounds** — off by default; flip on for the tractor "brrr" / bike "vroom".
+- **Finish fanfare** — on by default; the short victory melody when a trip ends.
+  Separate from tap sounds, because it only fires once a trip.
 - **Theme** — Auto (follows the phone, dims at night), Light, or Dark.
 - A **haptic buzz** fires on every tap (Android).
 
@@ -50,7 +70,7 @@ though the fullscreen/standalone polish needs the served route above.
 | File | What it is |
 |------|------------|
 | `index.html` | The whole app — UI + glue (inline CSS/JS) |
-| `tbc-logic.js` | Pure game logic: scoring, undo, state. No DOM, no storage. |
+| `tbc-logic.js` | Pure game logic: scoring, undo, state, trip history. No DOM, no storage. |
 | `tbc-logic.test.js` | Unit tests for the logic above |
 | `manifest.webmanifest` / `sw.js` | PWA install + offline service worker |
 | `icon-192.png` / `icon-512.png` | App icons |
@@ -70,5 +90,11 @@ python3 -m http.server 8190 --directory .
 python3 make-icons.py
 ```
 
-All state lives in `localStorage` under the key `tbc.game.v1`, so an
-accidental app/phone close mid-trip never loses the count.
+Live game state lives in `localStorage` under `tbc.game.v1`, so an accidental
+app/phone close mid-trip never loses the count. The 30-day trip history is a
+separate key, `tbc.stats.v1` — keeping them apart means a corrupt or oversized
+scoreboard can never take a live trip down with it.
+
+If you change any cached file, **bump `CACHE` in `sw.js`**. The service worker
+is cache-first, so without a new cache name an installed phone keeps serving the
+old `index.html` and your change never appears.

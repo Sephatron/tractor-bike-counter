@@ -76,9 +76,10 @@
   .iconbtn:active { background: var(--line); }
 
   /* ---- Setup ---- */
-  .head { padding: calc(18px + env(safe-area-inset-top)) 18px 6px; display: flex; align-items: center; justify-content: space-between; }
+  .head { padding: calc(18px + env(safe-area-inset-top)) 18px 6px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .head h1 { margin: 0; font-size: 26px; letter-spacing: .5px; }
   .head .sub { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+  .headbtns { display: flex; gap: 2px; flex: 0 0 auto; }
   .wrap { padding: 8px 16px 16px; }
   .pcard { background: var(--card); border-radius: 20px; padding: 14px; margin: 12px 0; box-shadow: var(--shadow); }
   .pcard .row1 { display: flex; align-items: center; gap: 10px; }
@@ -155,6 +156,27 @@
   .rrow .off .l { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 1px; }
   .reveal-foot { padding: 16px 18px calc(20px + env(safe-area-inset-bottom)); }
   .reveal-foot .btn { width: 100%; font-size: 20px; }
+  .reveal-foot .btn + .btn { margin-top: 10px; font-size: 17px; }
+
+  /* ---- Scoreboard (rolling 30-day window) ---- */
+  .tiles { display: flex; gap: 9px; margin-top: 4px; }
+  .tile { flex: 1; min-width: 0; background: var(--card); border-radius: 16px; padding: 12px 6px; box-shadow: var(--shadow); text-align: center; }
+  .tile .n { font-weight: 800; font-size: clamp(20px, 6.5vw, 26px); line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .tile .l { font-size: 11px; letter-spacing: 1.1px; color: var(--muted); font-weight: 800; margin-top: 2px; }
+  .sechead { font-size: 11px; letter-spacing: 1.7px; font-weight: 800; color: var(--muted); margin: 20px 0 8px 3px; }
+  .lrow { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 16px; padding: 10px 12px; margin: 8px 0; box-shadow: var(--shadow); }
+  .lrow.lead { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
+  .lrow .rank { width: 26px; text-align: center; font-weight: 800; font-size: 17px; flex: 0 0 auto; }
+  .lrow .who { flex: 1; min-width: 0; }
+  .lrow .who .nm { font-weight: 800; font-size: 16px; overflow-wrap: anywhere; }
+  .lrow .who .br { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .lrow .stat { text-align: right; flex: 0 0 auto; }
+  .lrow .stat .n { font-weight: 800; font-size: 19px; }
+  .lrow .stat .l { font-size: 11px; color: var(--muted); font-weight: 800; letter-spacing: 1px; }
+  .trip { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 14px; padding: 9px 12px; margin: 7px 0; box-shadow: var(--shadow); font-size: 13px; }
+  .trip .d { color: var(--muted); font-weight: 700; flex: 0 0 auto; }
+  .trip .c { font-weight: 800; flex: 1; min-width: 0; }
+  .trip .w { color: var(--muted); font-weight: 700; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ---- Modals ---- */
   .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 50; }
@@ -186,7 +208,10 @@
       <h1>🚜 TBC 🏍️</h1>
       <p class="sub">Guess the road. Tap the wins.</p>
     </div>
-    <button class="iconbtn" id="setup-gear" aria-label="Settings">⚙️</button>
+    <div class="headbtns">
+      <button class="iconbtn" id="setup-stats" aria-label="Scoreboard">📊</button>
+      <button class="iconbtn" id="setup-gear" aria-label="Settings">⚙️</button>
+    </div>
   </div>
   <div class="wrap">
     <div id="player-list"></div>
@@ -244,6 +269,37 @@
   <div class="ranklist" id="ranklist"></div>
   <div class="reveal-foot">
     <button class="btn btn--primary" id="again-btn">🔄 Play again (same crew)</button>
+    <button class="btn btn--ghost" id="reveal-stats">📊 Last 30 days</button>
+  </div>
+</section>
+
+<!-- ============ SCOREBOARD (rolling 30 days) ============ -->
+<section id="screen-stats" class="screen scroll">
+  <div class="head">
+    <div>
+      <h1>📊 Last 30 days</h1>
+      <p class="sub" id="stats-sub">Nothing on the record yet.</p>
+    </div>
+    <div class="headbtns">
+      <button class="iconbtn" id="stats-close" aria-label="Back">✕</button>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="tiles">
+      <div class="tile"><div class="n" id="stat-trips">0</div><div class="l">TRIPS</div></div>
+      <div class="tile"><div class="n" id="stat-tractors">🚜 0</div><div class="l">TRACTORS</div></div>
+      <div class="tile"><div class="n" id="stat-bikes">🏍️ 0</div><div class="l">MOTORBIKES</div></div>
+    </div>
+    <p class="empty" id="stats-empty" hidden>No finished trips in the last 30 days. Play one and it will show up here.</p>
+    <div id="stats-content">
+      <div class="sechead">LEADERBOARD</div>
+      <div id="leaderboard"></div>
+      <div class="sechead">RECENT TRIPS</div>
+      <div id="triplist"></div>
+    </div>
+  </div>
+  <div class="footer">
+    <button class="btn btn--ghost" id="clear-stats">Clear the record</button>
   </div>
 </section>
 
@@ -259,6 +315,18 @@
   </div>
 </div>
 
+<!-- ============ Confirm clear scoreboard ============ -->
+<div class="backdrop" id="clearstats-backdrop">
+  <div class="modal">
+    <h3>Clear the record?</h3>
+    <p>This deletes every stored trip from the last 30 days. It cannot be undone.</p>
+    <div class="row">
+      <button class="btn btn--ghost" id="clearstats-cancel">Keep it</button>
+      <button class="btn btn--primary" id="clearstats-confirm">Clear it</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ Settings ============ -->
 <div class="backdrop" id="settings-backdrop">
   <div class="modal">
@@ -266,6 +334,10 @@
     <div class="setrow">
       <span class="lab">🔊 Tap sounds</span>
       <label class="switch"><input type="checkbox" id="set-sound"><span class="slider"></span></label>
+    </div>
+    <div class="setrow">
+      <span class="lab">🎺 Finish fanfare</span>
+      <label class="switch"><input type="checkbox" id="set-fanfare"><span class="slider"></span></label>
     </div>
     <div class="setrow" style="flex-direction:column; align-items:stretch; gap:8px;">
       <span class="lab">🌗 Theme</span>
@@ -287,6 +359,9 @@
   'use strict';
 
   var STORAGE_KEY = 'tbc.game.v1';
+  // Trip history lives under its own key: a corrupt or oversized scoreboard can
+  // then never take a live trip down with it.
+  var STATS_KEY = 'tbc.stats.v1';
   var $ = function (id) { return document.getElementById(id); };
 
   function defaultState() {
@@ -295,7 +370,7 @@
       players: [],
       counts: { tractors: 0, bikes: 0 },
       history: [],
-      settings: { sound: false, theme: 'auto' }
+      settings: { sound: false, fanfare: true, theme: 'auto' }
     };
   }
 
@@ -325,6 +400,9 @@
       if (Array.isArray(s.history)) d.history = s.history.filter(function (t) { return t === 'tractors' || t === 'bikes'; });
       if (s.settings) {
         d.settings.sound = !!s.settings.sound;
+        // Absent means "saved before the fanfare existed" — those games get it
+        // too, so only an explicit false turns it off.
+        d.settings.fanfare = s.settings.fanfare !== false;
         d.settings.theme = (s.settings.theme === 'light' || s.settings.theme === 'dark') ? s.settings.theme : 'auto';
       }
     } catch (e) { return defaultState(); }
@@ -339,7 +417,7 @@
 
   // ---- Screen routing -------------------------------------------------------
   function showScreen(phase) {
-    ['setup', 'counting', 'reveal'].forEach(function (p) {
+    ['setup', 'counting', 'reveal', 'stats'].forEach(function (p) {
       $('screen-' + p).classList.toggle('active', p === phase);
     });
     window.scrollTo(0, 0);
@@ -347,6 +425,12 @@
   function goSetup() { game.phase = 'setup'; save(); showScreen('setup'); renderSetup(); }
   function goCounting() { game.phase = 'counting'; save(); showScreen('counting'); renderCounts(); }
   function goReveal() { game.phase = 'reveal'; save(); showScreen('reveal'); renderReveal(); }
+
+  // Stats is a detour, not a saved phase: game.phase is deliberately left alone
+  // so a reload can never strand you on the scoreboard mid-trip.
+  var statsReturn = 'setup';
+  function goStats(from) { statsReturn = from; showScreen('stats'); renderStats(); }
+  function leaveStats() { showScreen(statsReturn); }
 
   // ---- Setup screen ---------------------------------------------------------
   function renderSetup() {
@@ -571,26 +655,205 @@
     goSetup();
   }
 
+  // ---- Scoreboard: rolling 30-day trip history ------------------------------
+
+  /** Read the stored trips, already pruned to the retention window. */
+  function loadStats() {
+    try {
+      var raw = localStorage.getItem(STATS_KEY);
+      if (!raw) return [];
+      var s = JSON.parse(raw);
+      return TBC.pruneTrips(Array.isArray(s && s.trips) ? s.trips : [], Date.now());
+    } catch (e) { return []; }
+  }
+
+  function saveStats(trips) {
+    try { localStorage.setItem(STATS_KEY, JSON.stringify({ trips: trips })); } catch (e) { /* private mode / quota */ }
+  }
+
+  /**
+   * Log the trip that has just finished. Called once from the finish
+   * confirmation — never from renderReveal(), or reloading the phone on the
+   * reveal screen would record the same trip again.
+   */
+  function recordTrip() {
+    // A trip with nothing counted is almost always a mis-tap on Finish, and it
+    // is toxic to the record: with no tractors and no bikes everyone ties, so
+    // every passenger banks a win and their averages are dragged for 30 days,
+    // with no way to delete a single trip. A genuinely empty drive loses its
+    // entry — a fair trade for not corrupting a month of stats by accident.
+    if (game.counts.tractors + game.counts.bikes === 0) return;
+
+    var now = Date.now();
+    var trips = loadStats();
+    trips.push(TBC.makeTripRecord(game.players, game.counts, now));
+    saveStats(TBC.pruneTrips(trips, now));
+  }
+
+  /** Short, local-format date for a trip row, e.g. "2 Aug". */
+  function tripDate(at) {
+    try {
+      return new Date(at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    } catch (e) { return ''; }
+  }
+
+  function renderStats() {
+    var s = TBC.summariseTrips(loadStats());
+    var has = s.tripCount > 0;
+
+    $('stat-trips').textContent = s.tripCount;
+    $('stat-tractors').textContent = '🚜 ' + s.totals.tractors;
+    $('stat-bikes').textContent = '🏍️ ' + s.totals.bikes;
+    $('stats-sub').textContent = has
+      ? (s.tripCount === 1 ? '1 trip on the record.' : s.tripCount + ' trips on the record.')
+      : 'Nothing on the record yet.';
+
+    $('stats-empty').hidden = has;
+    $('stats-content').hidden = !has;
+    $('clear-stats').disabled = !has;
+
+    var board = $('leaderboard');
+    board.innerHTML = '';
+    s.leaderboard.forEach(function (e, i) {
+      var row = document.createElement('div');
+      row.className = 'lrow' + (i === 0 ? ' lead' : '');
+
+      var rank = document.createElement('div');
+      rank.className = 'rank';
+      rank.textContent = medal(i + 1);
+
+      // Derived from the name, not the standing, so a person's colour never
+      // changes when the ranking shifts underneath them.
+      var dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = TBC.colourForName(e.name);
+
+      var who = document.createElement('div');
+      who.className = 'who';
+      var nm = document.createElement('div');
+      nm.className = 'nm';
+      nm.textContent = e.name;
+      var br = document.createElement('div');
+      br.className = 'br';
+      br.textContent = (e.trips === 1 ? '1 trip' : e.trips + ' trips') +
+        ' · avg off by ' + e.avgMiss.toFixed(1) + ' · best ' + e.bestMiss;
+      who.appendChild(nm); who.appendChild(br);
+
+      var stat = document.createElement('div');
+      stat.className = 'stat';
+      var n = document.createElement('div');
+      n.className = 'n';
+      n.textContent = e.wins;
+      var l = document.createElement('div');
+      l.className = 'l';
+      l.textContent = e.wins === 1 ? 'WIN' : 'WINS';
+      stat.appendChild(n); stat.appendChild(l);
+
+      row.appendChild(rank); row.appendChild(dot); row.appendChild(who); row.appendChild(stat);
+      board.appendChild(row);
+    });
+
+    var list = $('triplist');
+    list.innerHTML = '';
+    s.recent.forEach(function (t) {
+      var row = document.createElement('div');
+      row.className = 'trip';
+
+      var d = document.createElement('span');
+      d.className = 'd';
+      d.textContent = tripDate(t.at);
+
+      var c = document.createElement('span');
+      c.className = 'c';
+      c.textContent = '🚜 ' + TBC.toCount(t.tractors) + ' · 🏍️ ' + TBC.toCount(t.bikes);
+
+      var w = document.createElement('span');
+      w.className = 'w';
+      var champs = (t.overall || []).join(' & ');
+      w.textContent = champs ? '🏆 ' + champs : '—';
+
+      row.appendChild(d); row.appendChild(c); row.appendChild(w);
+      list.appendChild(row);
+    });
+  }
+
+  function clearStats() {
+    try { localStorage.removeItem(STATS_KEY); } catch (e) {}
+    renderStats();
+  }
+
   // ---- Feedback: haptics + optional synth sound -----------------------------
   function buzz() { try { if (navigator.vibrate) navigator.vibrate(15); } catch (e) {} }
 
   var audioCtx = null;
+
+  /**
+   * Lazily build the shared audio context and wake it if the OS suspended it.
+   * Android suspends the context when the app is backgrounded; without the
+   * resume, every later sound is silently dropped.
+   * @returns {AudioContext|null}
+   */
+  function getAudio() {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!audioCtx) audioCtx = new AC();
+    if (audioCtx.state === 'suspended' && audioCtx.resume) audioCtx.resume();
+    return audioCtx;
+  }
+
   function blip(type) {
     if (!game.settings.sound) return;
     try {
-      var AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return;
-      audioCtx = audioCtx || new AC();
-      var o = audioCtx.createOscillator();
-      var g = audioCtx.createGain();
+      var ctx = getAudio();
+      if (!ctx) return;
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
       o.type = type === 'tractors' ? 'sawtooth' : 'square';
       o.frequency.value = type === 'tractors' ? 150 : 430;
       g.gain.value = 0.05;
-      o.connect(g); g.connect(audioCtx.destination);
-      var t = audioCtx.currentTime;
+      o.connect(g); g.connect(ctx.destination);
+      var t = ctx.currentTime;
       o.start(t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
       o.stop(t + 0.2);
+    } catch (e) {}
+  }
+
+  // "Podium": a rising C-major arpeggio landing on a held top note.
+  // [frequency, seconds from the start, duration]
+  var FANFARE = [
+    [523.25, 0.00, 0.12],  // C5
+    [659.25, 0.12, 0.12],  // E5
+    [783.99, 0.24, 0.12],  // G5
+    [1046.50, 0.36, 0.40]  // C6, held
+  ];
+
+  /**
+   * One-off victory melody when a trip is finished. Fired from the finish
+   * confirmation, which is a real user gesture, so mobile autoplay policy is
+   * satisfied. Never throws: a silent failure must not block the reveal.
+   */
+  function playFanfare() {
+    if (!game.settings.fanfare) return;
+    try {
+      var ctx = getAudio();
+      if (!ctx) return;
+      var t0 = ctx.currentTime + 0.03;
+      FANFARE.forEach(function (note) {
+        var o = ctx.createOscillator();
+        var g = ctx.createGain();
+        o.type = 'triangle';
+        o.frequency.value = note[0];
+        o.connect(g); g.connect(ctx.destination);
+        var start = t0 + note[1];
+        var end = start + note[2];
+        // Ramped rather than stepped, so each note has no click on either edge.
+        g.gain.setValueAtTime(0.0001, start);
+        g.gain.exponentialRampToValueAtTime(0.16, start + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.0001, end);
+        o.start(start);
+        o.stop(end + 0.02);
+      });
     } catch (e) {}
   }
 
@@ -610,6 +873,7 @@
 
   function openSettings() {
     $('set-sound').checked = game.settings.sound;
+    $('set-fanfare').checked = game.settings.fanfare;
     $('theme-seg').querySelectorAll('button').forEach(function (b) {
       b.classList.toggle('active', b.getAttribute('data-theme') === game.settings.theme);
     });
@@ -621,6 +885,7 @@
   $('start-btn').addEventListener('click', startTrip);
   $('clear-all').addEventListener('click', function () { game.players = []; save(); renderSetup(); });
   $('setup-gear').addEventListener('click', openSettings);
+  $('setup-stats').addEventListener('click', function () { goStats('setup'); });
 
   $('zone-tractor').addEventListener('click', function () { onTap('tractors'); });
   $('zone-bike').addEventListener('click', function () { onTap('bikes'); });
@@ -628,11 +893,23 @@
   $('count-gear').addEventListener('click', openSettings);
   $('finish-btn').addEventListener('click', function () { openModal('confirm-backdrop'); });
   $('confirm-cancel').addEventListener('click', function () { closeModal('confirm-backdrop'); });
-  $('confirm-finish').addEventListener('click', function () { closeModal('confirm-backdrop'); goReveal(); });
+  $('confirm-finish').addEventListener('click', function () {
+    closeModal('confirm-backdrop');
+    recordTrip();
+    playFanfare();
+    goReveal();
+  });
 
   $('again-btn').addEventListener('click', playAgain);
+  $('reveal-stats').addEventListener('click', function () { goStats('reveal'); });
+
+  $('stats-close').addEventListener('click', leaveStats);
+  $('clear-stats').addEventListener('click', function () { openModal('clearstats-backdrop'); });
+  $('clearstats-cancel').addEventListener('click', function () { closeModal('clearstats-backdrop'); });
+  $('clearstats-confirm').addEventListener('click', function () { closeModal('clearstats-backdrop'); clearStats(); });
 
   $('set-sound').addEventListener('change', function () { game.settings.sound = $('set-sound').checked; save(); });
+  $('set-fanfare').addEventListener('change', function () { game.settings.fanfare = $('set-fanfare').checked; save(); });
   $('theme-seg').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-theme]');
     if (!b) return;
@@ -644,12 +921,19 @@
   $('settings-close').addEventListener('click', function () { closeModal('settings-backdrop'); });
 
   // Close a modal by tapping its dark backdrop.
-  ['confirm-backdrop', 'settings-backdrop'].forEach(function (id) {
+  ['confirm-backdrop', 'clearstats-backdrop', 'settings-backdrop'].forEach(function (id) {
     $(id).addEventListener('click', function (e) { if (e.target === $(id)) closeModal(id); });
   });
 
   // ---- Boot -----------------------------------------------------------------
   applyTheme();
+  // Enforce the 30-day window at launch, so trips age out even if the
+  // scoreboard is never opened. Only writes back when there is something to
+  // keep, so a fresh install never creates an empty stats blob.
+  (function () {
+    var trips = loadStats();
+    if (trips.length) saveStats(trips);
+  })();
   if (game.phase === 'counting') { showScreen('counting'); renderCounts(); }
   else if (game.phase === 'reveal') { showScreen('reveal'); renderReveal(); }
   else { showScreen('setup'); renderSetup(); }
