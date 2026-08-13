@@ -10,3 +10,6 @@
 
 # Lavish review artifacts (throwaway planning surfaces)
 .lavish/
+
+# Local dev-server config (preview tooling, not part of the app)
+.claude/

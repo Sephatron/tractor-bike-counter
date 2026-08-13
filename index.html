@@ -24,6 +24,11 @@
     --bike: #2e9e4f;
     --bike-soft: #d9f4df;
     --bike-ink: #155f2c;
+    /* The third counter borrows the sky blue already in the passenger palette,
+       so it reads as part of the same family rather than as a bolted-on colour. */
+    --custom: #3a8dde;
+    --custom-soft: #dceafa;
+    --custom-ink: #17497e;
     --accent: #f5b916;
     --shadow: 0 8px 24px rgba(60,50,20,.10);
   }
@@ -32,6 +37,7 @@
       --bg: #15171c; --card: #21242b; --ink: #f3efe6; --muted: #9a978d; --line: #313640;
       --tractor: #ff7a45; --tractor-soft: #3a2418; --tractor-ink: #ffb692;
       --bike: #46c46d; --bike-soft: #16301f; --bike-ink: #9be7af;
+      --custom: #6fb2f0; --custom-soft: #16283c; --custom-ink: #a9d3f7;
       --accent: #ffcf3f; --shadow: 0 10px 30px rgba(0,0,0,.45);
     }
   }
@@ -39,6 +45,7 @@
     --bg: #15171c; --card: #21242b; --ink: #f3efe6; --muted: #9a978d; --line: #313640;
     --tractor: #ff7a45; --tractor-soft: #3a2418; --tractor-ink: #ffb692;
     --bike: #46c46d; --bike-soft: #16301f; --bike-ink: #9be7af;
+    --custom: #6fb2f0; --custom-soft: #16283c; --custom-ink: #a9d3f7;
     --accent: #ffcf3f; --shadow: 0 10px 30px rgba(0,0,0,.45);
   }
 
@@ -90,8 +97,27 @@
   }
   input.name:focus { outline: none; border-color: var(--tractor); }
   .pcard .row2 { display: flex; gap: 10px; margin-top: 12px; }
-  .guess { flex: 1; background: var(--bg); border-radius: 14px; padding: 8px; }
+  .guess { flex: 1; min-width: 0; background: var(--bg); border-radius: 14px; padding: 8px; }
   .guess .glabel { font-size: 13px; color: var(--muted); margin: 0 0 6px 2px; font-weight: 700; }
+
+  /* Three guesses side by side crush the number field to nothing on a phone,
+     so a third counter switches the row to full-width stacked rows instead. */
+  .row2.stack { flex-direction: column; gap: 8px; }
+  .row2.stack .guess { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
+  .row2.stack .glabel { margin: 0; flex: 1; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row2.stack .stepper { flex: 0 0 auto; gap: 8px; }
+  .row2.stack .stepper input { max-width: 58px; }
+
+  /* ---- The optional third counter, on the setup screen ---- */
+  .ccard { background: var(--card); border-radius: 20px; padding: 14px; margin: 12px 0; box-shadow: 0 0 0 2px var(--custom), var(--shadow); }
+  .ccard .cl { font-size: 11px; letter-spacing: 1.6px; font-weight: 800; color: var(--custom-ink); margin: 0 0 10px 2px; }
+  .ccard .row1 { display: flex; align-items: center; gap: 10px; }
+  .emojibtn {
+    width: 52px; height: 46px; flex: 0 0 auto; border: none; border-radius: 13px;
+    background: var(--custom-soft); box-shadow: inset 0 0 0 2px var(--custom);
+    font-size: 24px; line-height: 1; cursor: pointer; touch-action: manipulation; padding: 0;
+  }
+  .emojibtn:active { transform: scale(.94); }
   .stepper { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
   .stepper button {
     width: 42px; height: 42px; border-radius: 12px; border: none; background: var(--card);
@@ -119,10 +145,19 @@
   .zone:active { filter: brightness(.95); }
   .zone--tractor { background: var(--tractor-soft); color: var(--tractor-ink); }
   .zone--bike { background: var(--bike-soft); color: var(--bike-ink); }
+  .zone--custom { background: var(--custom-soft); color: var(--custom-ink); }
+  /* .zone sets display:flex, which would otherwise beat the hidden attribute. */
+  .zone[hidden] { display: none; }
   .zone .emoji { font-size: clamp(38px, 12vw, 64px); line-height: 1; }
-  .zone .zlabel { font-weight: 800; letter-spacing: 2px; font-size: clamp(15px, 4.5vw, 20px); margin-top: 4px; opacity: .8; }
+  .zone .zlabel { font-weight: 800; letter-spacing: 2px; font-size: clamp(15px, 4.5vw, 20px); margin-top: 4px; opacity: .8; padding: 0 10px; text-align: center; overflow-wrap: anywhere; }
   .zone .count { font-weight: 800; font-size: clamp(72px, 26vw, 190px); line-height: .95; font-variant-numeric: tabular-nums; margin: 2px 0; }
   .zone .hint { font-size: 14px; opacity: .55; font-weight: 600; }
+  /* Three zones each lose a third of the height, so everything steps down and
+     the "tap to add" hint goes: by the third counter you know how it works. */
+  .zones--3 .zone .emoji { font-size: clamp(26px, 7.5vw, 42px); }
+  .zones--3 .zone .zlabel { font-size: clamp(12px, 3.4vw, 16px); letter-spacing: 1.4px; margin-top: 2px; }
+  .zones--3 .zone .count { font-size: clamp(46px, 16vw, 120px); }
+  .zones--3 .zone .hint { display: none; }
   @keyframes pop { 0% { transform: scale(1); } 30% { transform: scale(1.28); } 100% { transform: scale(1); } }
   .count.pop { animation: pop .25s ease-out; }
   .countbar { display: flex; gap: 10px; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: var(--card); }
@@ -133,8 +168,11 @@
   .reveal .flag { font-size: 40px; }
   .reveal h2 { margin: 4px 0 2px; font-size: 24px; }
   .actuals { display: flex; gap: 14px; justify-content: center; margin: 10px 0 18px; }
-  .actuals .ac { background: var(--card); border-radius: 16px; padding: 10px 18px; box-shadow: var(--shadow); font-weight: 800; font-size: 22px; }
+  .actuals .ac { background: var(--card); border-radius: 16px; padding: 10px 18px; box-shadow: var(--shadow); font-weight: 800; font-size: 22px; min-width: 0; }
   .actuals .ac small { display: block; font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: 1px; }
+  .actuals.three { gap: 8px; }
+  .actuals.three .ac { flex: 1; padding: 10px 8px; font-size: 19px; text-align: center; }
+  .actuals.three .ac small { font-size: 10px; letter-spacing: .5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .overall { background: var(--card); border-radius: 22px; padding: 20px; margin: 0 18px 14px; box-shadow: var(--shadow); }
   .overall .trophy { font-size: 46px; }
   .overall .who { font-size: 30px; font-weight: 800; margin: 4px 0 2px; overflow-wrap: anywhere; }
@@ -143,7 +181,12 @@
   .badge { flex: 1; min-width: 0; background: var(--card); border-radius: 16px; padding: 12px; box-shadow: var(--shadow); }
   .badge .bt { font-size: 24px; }
   .badge .bn { font-weight: 800; font-size: 17px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .badge .bc { font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: 1px; }
+  .badge .bc { font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge[hidden] { display: none; }
+  .badges.three { gap: 8px; }
+  .badges.three .badge { padding: 10px 6px; }
+  .badges.three .badge .bn { font-size: 15px; }
+  .badges.three .badge .bc { font-size: 10px; letter-spacing: .4px; }
   .ranklist { margin: 0 16px; }
   .rrow { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 16px; padding: 12px 14px; margin: 8px 0; box-shadow: var(--shadow); }
   .rrow.win { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
@@ -173,9 +216,17 @@
   .lrow .stat { text-align: right; flex: 0 0 auto; }
   .lrow .stat .n { font-weight: 800; font-size: 19px; }
   .lrow .stat .l { font-size: 11px; color: var(--muted); font-weight: 800; letter-spacing: 1px; }
+  .orow { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 16px; padding: 11px 14px; margin: 8px 0; box-shadow: var(--shadow); }
+  .orow .oe { font-size: 24px; flex: 0 0 auto; line-height: 1; }
+  .orow .on { flex: 1; min-width: 0; }
+  .orow .on .nm { font-weight: 800; font-size: 16px; overflow-wrap: anywhere; }
+  .orow .on .br { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .orow .ov { text-align: right; flex: 0 0 auto; }
+  .orow .ov .n { font-weight: 800; font-size: 19px; font-variant-numeric: tabular-nums; }
+  .orow .ov .l { font-size: 11px; color: var(--muted); font-weight: 800; letter-spacing: 1px; }
   .trip { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 14px; padding: 9px 12px; margin: 7px 0; box-shadow: var(--shadow); font-size: 13px; }
   .trip .d { color: var(--muted); font-weight: 700; flex: 0 0 auto; }
-  .trip .c { font-weight: 800; flex: 1; min-width: 0; }
+  .trip .c { font-weight: 800; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .trip .w { color: var(--muted); font-weight: 700; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ---- Modals ---- */
@@ -197,6 +248,20 @@
   .slider::before { content: ""; position: absolute; width: 26px; height: 26px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 2px 4px rgba(0,0,0,.25); }
   .switch input:checked + .slider { background: var(--bike); }
   .switch input:checked + .slider::before { transform: translateX(22px); }
+
+  /* ---- Emoji picker ---- */
+  .egrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; max-height: 46vh; overflow-y: auto; margin-bottom: 14px; }
+  .egrid button {
+    aspect-ratio: 1; border: none; border-radius: 10px; background: var(--bg);
+    font-size: 21px; line-height: 1; padding: 0; cursor: pointer; touch-action: manipulation;
+  }
+  .egrid button.sel { background: var(--custom-soft); box-shadow: inset 0 0 0 2px var(--custom); }
+  .etyperow { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+  .etyperow input {
+    flex: 1; min-width: 0; font: inherit; font-size: 22px; text-align: center; padding: 8px;
+    border-radius: 12px; border: 2px solid var(--line); background: var(--bg); color: var(--ink);
+  }
+  .etyperow input:focus { outline: none; border-color: var(--custom); }
 </style>
 </head>
 <body>
@@ -214,6 +279,7 @@
     </div>
   </div>
   <div class="wrap">
+    <div id="custom-slot"></div>
     <div id="player-list"></div>
     <button class="addbtn" id="add-player">＋ Add passenger</button>
   </div>
@@ -241,6 +307,12 @@
     <div class="count" id="count-bikes">0</div>
     <div class="hint">tap to add</div>
   </div>
+  <div class="zone zone--custom" id="zone-custom" role="button" tabindex="0" hidden>
+    <div class="emoji" id="zone-custom-emoji">🎯</div>
+    <div class="zlabel" id="zone-custom-label"></div>
+    <div class="count" id="count-custom">0</div>
+    <div class="hint">tap to add</div>
+  </div>
   <div class="countbar">
     <button class="btn btn--ghost" id="undo-btn" disabled>↩ Undo</button>
     <button class="btn" id="finish-btn">⚑ Finish</button>
@@ -252,9 +324,10 @@
   <div class="reveal">
     <div class="flag">🏁</div>
     <h2>Final results</h2>
-    <div class="actuals">
-      <div class="ac">🚜 <span id="actual-tractors">0</span><small>TRACTORS</small></div>
-      <div class="ac">🏍️ <span id="actual-bikes">0</span><small>MOTORBIKES</small></div>
+    <div class="actuals" id="actuals">
+      <div class="ac">🚜 <span id="actual-tractors">0</span><small id="cap-tractors">TRACTORS</small></div>
+      <div class="ac">🏍️ <span id="actual-bikes">0</span><small id="cap-bikes">MOTORBIKES</small></div>
+      <div class="ac" id="actual-custom-chip" hidden><span id="actual-custom-emoji">🎯</span> <span id="actual-custom">0</span><small id="actual-custom-label"></small></div>
     </div>
   </div>
   <div class="overall">
@@ -262,9 +335,10 @@
     <div class="who" id="overall-who">—</div>
     <div class="cap">closest overall</div>
   </div>
-  <div class="badges">
-    <div class="badge"><div class="bt">🚜</div><div class="bn" id="tractor-champ">—</div><div class="bc">TRACTOR CHAMP</div></div>
-    <div class="badge"><div class="bt">🏍️</div><div class="bn" id="bike-champ">—</div><div class="bc">BIKE CHAMP</div></div>
+  <div class="badges" id="badges">
+    <div class="badge"><div class="bt">🚜</div><div class="bn" id="tractor-champ">—</div><div class="bc" id="tractor-badge-cap">TRACTOR CHAMP</div></div>
+    <div class="badge"><div class="bt">🏍️</div><div class="bn" id="bike-champ">—</div><div class="bc" id="bike-badge-cap">BIKE CHAMP</div></div>
+    <div class="badge" id="custom-badge" hidden><div class="bt" id="custom-badge-emoji">🎯</div><div class="bn" id="custom-champ">—</div><div class="bc" id="custom-badge-cap"></div></div>
   </div>
   <div class="ranklist" id="ranklist"></div>
   <div class="reveal-foot">
@@ -292,6 +366,10 @@
     </div>
     <p class="empty" id="stats-empty" hidden>No finished trips in the last 30 days. Play one and it will show up here.</p>
     <div id="stats-content">
+      <div id="other-spots" hidden>
+        <div class="sechead">OTHER SPOTS</div>
+        <div id="otherlist"></div>
+      </div>
       <div class="sechead">LEADERBOARD</div>
       <div id="leaderboard"></div>
       <div class="sechead">RECENT TRIPS</div>
@@ -323,6 +401,21 @@
     <div class="row">
       <button class="btn btn--ghost" id="clearstats-cancel">Keep it</button>
       <button class="btn btn--primary" id="clearstats-confirm">Clear it</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Emoji picker ============ -->
+<div class="backdrop" id="emoji-backdrop">
+  <div class="modal">
+    <h3>Pick a symbol</h3>
+    <p>Tap one, or type any emoji you like.</p>
+    <div class="egrid" id="emoji-grid"></div>
+    <div class="etyperow">
+      <input type="text" id="emoji-typed" inputmode="text" aria-label="Type an emoji" autocomplete="off">
+    </div>
+    <div class="row" style="margin-top:14px;">
+      <button class="btn btn--primary" id="emoji-close">Done</button>
     </div>
   </div>
 </div>
@@ -364,12 +457,26 @@
   var STATS_KEY = 'tbc.stats.v1';
   var $ = function (id) { return document.getElementById(id); };
 
+  // Offered in the picker. Deliberately a fixed list rather than a library:
+  // the app has to work with no network, and a full emoji picker is a download.
+  // Anything not here can still be typed or pasted into the field beneath.
+  var EMOJI_CHOICES = (
+    '🚜 🏍️ 🚚 🚌 🚐 🚑 🚒 🚓 🚗 🚙 🏎️ 🚛 🚲 🛻 ⛽ 🚧 ' +
+    '🐄 🐑 🐎 🐖 🐕 🐈 🦌 🦊 🐦 🦆 🦢 🕊️ 🐇 🦔 ' +
+    '🌳 🌲 🌈 ☀️ 🌧️ ⚡ ⛰️ 🌊 ' +
+    '🏰 ⛪ 🌉 🎡 🏭 🏠 🚁 ✈️ 🚂 ⛵ ' +
+    '🍦 ☕ 🍟 🎈 🎯 ⭐ ❤️ 💙 💚 💛 🟥 🟦 🟩 🟨 ⬛ ⬜'
+  ).split(' ');
+
   function defaultState() {
     return {
       phase: 'setup',
       players: [],
-      counts: { tractors: 0, bikes: 0 },
+      counts: { tractors: 0, bikes: 0, custom: 0 },
       history: [],
+      // null is the "no third counter" state, and it is also what every game
+      // saved before this feature existed loads as.
+      custom: null,
       settings: { sound: false, fanfare: true, theme: 'auto' }
     };
   }
@@ -392,12 +499,28 @@
             name: String(p.name == null ? '' : p.name).slice(0, 18),
             colour: p.colour ? p.colour : TBC.colourForIndex(i),
             guessTractors: TBC.toCount(p.guessTractors),
-            guessBikes: TBC.toCount(p.guessBikes)
+            guessBikes: TBC.toCount(p.guessBikes),
+            guessCustom: TBC.toCount(p.guessCustom)
           };
         });
       }
-      if (s.counts) { d.counts.tractors = TBC.toCount(s.counts.tractors); d.counts.bikes = TBC.toCount(s.counts.bikes); }
-      if (Array.isArray(s.history)) d.history = s.history.filter(function (t) { return t === 'tractors' || t === 'bikes'; });
+      // Mid-setup the counter is often half-filled: symbol picked, name not
+      // typed yet. Normalising there would throw the symbol away on a reload,
+      // so a setup-phase draft is kept verbatim and only resolved at Start.
+      if (d.phase === 'setup' && s.custom && typeof s.custom === 'object') {
+        d.custom = {
+          label: String(s.custom.label == null ? '' : s.custom.label).slice(0, TBC.MAX_LABEL),
+          emoji: TBC.firstGrapheme(s.custom.emoji) || TBC.DEFAULT_CUSTOM_EMOJI
+        };
+      } else {
+        d.custom = TBC.normaliseCustom(s.custom);
+      }
+      if (s.counts) {
+        d.counts.tractors = TBC.toCount(s.counts.tractors);
+        d.counts.bikes = TBC.toCount(s.counts.bikes);
+        d.counts.custom = TBC.toCount(s.counts.custom);
+      }
+      if (Array.isArray(s.history)) d.history = s.history.filter(TBC.isCountKey);
       if (s.settings) {
         d.settings.sound = !!s.settings.sound;
         // Absent means "saved before the fanfare existed" — those games get it
@@ -434,6 +557,7 @@
 
   // ---- Setup screen ---------------------------------------------------------
   function renderSetup() {
+    renderCustomCard();
     var list = $('player-list');
     list.innerHTML = '';
     if (!game.players.length) {
@@ -445,6 +569,91 @@
     game.players.forEach(function (p, i) { list.appendChild(buildPlayerCard(p, i)); });
     $('clear-all').hidden = game.players.length === 0;
     updateStartEnabled();
+  }
+
+  /** Emoji + name as one string, for stepper labels and zone captions. */
+  function customTitle() {
+    return game.custom ? (game.custom.emoji + ' ' + game.custom.label) : '';
+  }
+
+  /** Retitle every passenger's third stepper in place. */
+  function syncCustomLabels() {
+    var title = customTitle();
+    var labels = $('player-list').querySelectorAll('[data-custom-label]');
+    for (var i = 0; i < labels.length; i++) labels[i].textContent = title;
+  }
+
+  /**
+   * The third-counter card, or the dashed button that creates one.
+   *
+   * Rebuilt wholesale like the passenger list, except that the name field
+   * updates state without a re-render so the caret is never yanked mid-word.
+   */
+  function renderCustomCard() {
+    var slot = $('custom-slot');
+    slot.innerHTML = '';
+
+    if (!game.custom) {
+      var add = document.createElement('button');
+      add.className = 'addbtn';
+      add.textContent = '＋ Add a third thing to count';
+      add.addEventListener('click', function () {
+        game.custom = { label: '', emoji: TBC.DEFAULT_CUSTOM_EMOJI };
+        save();
+        renderSetup();
+        var field = slot.querySelector('input.name');
+        if (field) field.focus();
+      });
+      slot.appendChild(add);
+      return;
+    }
+
+    var card = document.createElement('div');
+    card.className = 'ccard';
+
+    var cap = document.createElement('div');
+    cap.className = 'cl';
+    cap.textContent = 'THIRD THING TO COUNT';
+
+    var row = document.createElement('div');
+    row.className = 'row1';
+
+    var emoji = document.createElement('button');
+    emoji.className = 'emojibtn';
+    emoji.textContent = game.custom.emoji;
+    emoji.setAttribute('aria-label', 'Pick a symbol');
+    emoji.addEventListener('click', openEmojiPicker);
+
+    var name = document.createElement('input');
+    name.className = 'name';
+    name.type = 'text';
+    name.placeholder = 'Cows, red cars, caravans…';
+    name.value = game.custom.label;
+    name.maxLength = TBC.MAX_LABEL;
+    name.setAttribute('aria-label', 'What are you counting?');
+    name.addEventListener('input', function () {
+      game.custom.label = name.value;
+      save();
+      syncCustomLabels();
+    });
+
+    var remove = document.createElement('button');
+    remove.className = 'removebtn';
+    remove.innerHTML = '✕';
+    remove.setAttribute('aria-label', 'Remove the third counter');
+    remove.addEventListener('click', function () {
+      game.custom = null;
+      // Guesses for the counter that just went away must go with it. Leaving
+      // them would silently pre-fill the NEXT counter with numbers meant for
+      // the old one, and those numbers still score.
+      game.players.forEach(function (p) { p.guessCustom = 0; });
+      save();
+      renderSetup();
+    });
+
+    row.appendChild(emoji); row.appendChild(name); row.appendChild(remove);
+    card.appendChild(cap); card.appendChild(row);
+    slot.appendChild(card);
   }
 
   function buildPlayerCard(p, index) {
@@ -482,9 +691,12 @@
     row1.appendChild(dot); row1.appendChild(name); row1.appendChild(remove);
 
     var row2 = document.createElement('div');
-    row2.className = 'row2';
+    row2.className = game.custom ? 'row2 stack' : 'row2';
     row2.appendChild(buildGuess(p, 'guessTractors', '🚜 Tractors'));
     row2.appendChild(buildGuess(p, 'guessBikes', '🏍️ Bikes'));
+    if (game.custom) {
+      row2.appendChild(buildGuess(p, 'guessCustom', customTitle()));
+    }
 
     card.appendChild(row1); card.appendChild(row2);
     return card;
@@ -496,6 +708,9 @@
     var lab = document.createElement('div');
     lab.className = 'glabel';
     lab.textContent = label;
+    // Tagged so renaming the counter can retitle every passenger's stepper
+    // without a re-render, which would steal the caret out of the name field.
+    if (key === 'guessCustom') lab.setAttribute('data-custom-label', '1');
 
     var step = document.createElement('div');
     step.className = 'stepper';
@@ -550,20 +765,36 @@
     game.players = game.players.filter(function (p) { p.name = p.name.trim(); return p.name !== ''; });
     reColour();
     if (!game.players.length) { renderSetup(); return; }
-    game.counts = { tractors: 0, bikes: 0 };
+    // Same rule for the third counter: left unnamed means you did not want one.
+    game.custom = TBC.normaliseCustom(game.custom);
+    game.counts = { tractors: 0, bikes: 0, custom: 0 };
     game.history = [];
     goCounting();
   }
 
   // ---- Counting screen ------------------------------------------------------
+  var COUNT_EL = { tractors: 'count-tractors', bikes: 'count-bikes', custom: 'count-custom' };
+
   function renderCounts() {
     $('count-tractors').textContent = game.counts.tractors;
     $('count-bikes').textContent = game.counts.bikes;
+    $('count-custom').textContent = game.counts.custom;
+
+    var on = !!game.custom;
+    $('zone-custom').hidden = !on;
+    $('screen-counting').classList.toggle('zones--3', on);
+    if (on) {
+      $('zone-custom-emoji').textContent = game.custom.emoji;
+      $('zone-custom-label').textContent = game.custom.label.toUpperCase();
+      $('zone-custom').setAttribute('aria-label', 'Add one: ' + game.custom.label);
+    }
+
     $('undo-btn').disabled = game.history.length === 0;
   }
 
   function bump(type) {
-    var el = type === 'tractors' ? $('count-tractors') : $('count-bikes');
+    var el = $(COUNT_EL[type]);
+    if (!el) return;
     el.textContent = game.counts[type];
     el.classList.remove('pop');
     void el.offsetWidth; // force reflow so the animation retriggers on every tap
@@ -596,12 +827,31 @@
   function medal(place) { return ({ 1: '🥇', 2: '🥈', 3: '🥉' })[place] || (place + '.'); }
 
   function renderReveal() {
-    var r = TBC.score(game.players, game.counts);
+    var r = TBC.score(game.players, game.counts, game.custom);
+    var on = !!r.custom;
+
     $('actual-tractors').textContent = r.actual.tractors;
     $('actual-bikes').textContent = r.actual.bikes;
     $('overall-who').textContent = namesFor(r.overallChamps);
     $('tractor-champ').textContent = namesFor(r.tractorChamps);
     $('bike-champ').textContent = namesFor(r.bikeChamps);
+
+    $('actuals').classList.toggle('three', on);
+    $('badges').classList.toggle('three', on);
+    $('actual-custom-chip').hidden = !on;
+    $('custom-badge').hidden = !on;
+    // "TRACTOR CHAMP" does not fit a third of the width, so the captions drop
+    // the word once there are three badges. Two badges keep the fuller wording.
+    $('tractor-badge-cap').textContent = on ? 'TRACTORS' : 'TRACTOR CHAMP';
+    $('bike-badge-cap').textContent = on ? 'BIKES' : 'BIKE CHAMP';
+    if (on) {
+      $('actual-custom-emoji').textContent = r.custom.emoji;
+      $('actual-custom').textContent = r.actual.custom;
+      $('actual-custom-label').textContent = r.custom.label.toUpperCase();
+      $('custom-badge-emoji').textContent = r.custom.emoji;
+      $('custom-badge-cap').textContent = r.custom.label.toUpperCase();
+      $('custom-champ').textContent = namesFor(r.customChamps);
+    }
 
     var winners = {};
     r.overallChamps.forEach(function (id) { winners[id] = true; });
@@ -629,7 +879,8 @@
       nm.textContent = row.name;
       var br = document.createElement('div');
       br.className = 'br';
-      br.textContent = 'guessed 🚜 ' + row.guessTractors + ' · 🏍️ ' + row.guessBikes;
+      br.textContent = 'guessed 🚜 ' + row.guessTractors + ' · 🏍️ ' + row.guessBikes +
+        (on ? ' · ' + r.custom.emoji + ' ' + row.guessCustom : '');
       who.appendChild(nm); who.appendChild(br);
 
       var off = document.createElement('div');
@@ -648,9 +899,11 @@
   }
 
   function playAgain() {
-    // Same crew, fresh guesses and a clean count.
-    game.players.forEach(function (p) { p.guessTractors = 0; p.guessBikes = 0; });
-    game.counts = { tractors: 0, bikes: 0 };
+    // Same crew, same third counter, fresh guesses and a clean count. The
+    // counter is kept for the same reason the passengers are: it is still the
+    // same car on the same road, just the next leg of it.
+    game.players.forEach(function (p) { p.guessTractors = 0; p.guessBikes = 0; p.guessCustom = 0; });
+    game.counts = { tractors: 0, bikes: 0, custom: 0 };
     game.history = [];
     goSetup();
   }
@@ -682,11 +935,13 @@
     // every passenger banks a win and their averages are dragged for 30 days,
     // with no way to delete a single trip. A genuinely empty drive loses its
     // entry — a fair trade for not corrupting a month of stats by accident.
-    if (game.counts.tractors + game.counts.bikes === 0) return;
+    var tapped = game.counts.tractors + game.counts.bikes +
+      (game.custom ? game.counts.custom : 0);
+    if (tapped === 0) return;
 
     var now = Date.now();
     var trips = loadStats();
-    trips.push(TBC.makeTripRecord(game.players, game.counts, now));
+    trips.push(TBC.makeTripRecord(game.players, game.counts, now, game.custom));
     saveStats(TBC.pruneTrips(trips, now));
   }
 
@@ -711,6 +966,43 @@
     $('stats-empty').hidden = has;
     $('stats-content').hidden = !has;
     $('clear-stats').disabled = !has;
+
+    // Custom counters roll up by name, so "Cows" across three trips is one row.
+    // The whole section disappears when the window holds none.
+    var others = $('otherlist');
+    others.innerHTML = '';
+    $('other-spots').hidden = s.customTotals.length === 0;
+    s.customTotals.forEach(function (c) {
+      var row = document.createElement('div');
+      row.className = 'orow';
+
+      var em = document.createElement('span');
+      em.className = 'oe';
+      em.textContent = c.emoji;
+
+      var on = document.createElement('div');
+      on.className = 'on';
+      var nm = document.createElement('div');
+      nm.className = 'nm';
+      nm.textContent = c.label;
+      var br = document.createElement('div');
+      br.className = 'br';
+      br.textContent = c.trips === 1 ? 'on 1 trip' : 'on ' + c.trips + ' trips';
+      on.appendChild(nm); on.appendChild(br);
+
+      var ov = document.createElement('div');
+      ov.className = 'ov';
+      var n = document.createElement('div');
+      n.className = 'n';
+      n.textContent = c.count;
+      var l = document.createElement('div');
+      l.className = 'l';
+      l.textContent = 'SPOTTED';
+      ov.appendChild(n); ov.appendChild(l);
+
+      row.appendChild(em); row.appendChild(on); row.appendChild(ov);
+      others.appendChild(row);
+    });
 
     var board = $('leaderboard');
     board.innerHTML = '';
@@ -765,7 +1057,9 @@
 
       var c = document.createElement('span');
       c.className = 'c';
-      c.textContent = '🚜 ' + TBC.toCount(t.tractors) + ' · 🏍️ ' + TBC.toCount(t.bikes);
+      var tCustom = TBC.normaliseCustom(t.custom);
+      c.textContent = '🚜 ' + TBC.toCount(t.tractors) + ' · 🏍️ ' + TBC.toCount(t.bikes) +
+        (tCustom ? ' · ' + tCustom.emoji + ' ' + TBC.toCount(t.custom.count) : '');
 
       var w = document.createElement('span');
       w.className = 'w';
@@ -808,8 +1102,9 @@
       if (!ctx) return;
       var o = ctx.createOscillator();
       var g = ctx.createGain();
-      o.type = type === 'tractors' ? 'sawtooth' : 'square';
-      o.frequency.value = type === 'tractors' ? 150 : 430;
+      // A third voice, so you can tell by ear which zone you just hit.
+      o.type = type === 'tractors' ? 'sawtooth' : (type === 'bikes' ? 'square' : 'triangle');
+      o.frequency.value = type === 'tractors' ? 150 : (type === 'bikes' ? 430 : 660);
       g.gain.value = 0.05;
       o.connect(g); g.connect(ctx.destination);
       var t = ctx.currentTime;
@@ -871,6 +1166,52 @@
   function openModal(id) { $(id).classList.add('show'); }
   function closeModal(id) { $(id).classList.remove('show'); }
 
+  /**
+   * Build the emoji grid once, then open it against the current selection.
+   * A no-op when there is no counter to attach the symbol to.
+   */
+  var emojiGridBuilt = false;
+  function openEmojiPicker() {
+    if (!game.custom) return;
+
+    if (!emojiGridBuilt) {
+      var grid = $('emoji-grid');
+      EMOJI_CHOICES.forEach(function (e) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = e;
+        b.setAttribute('aria-label', 'Use ' + e);
+        b.addEventListener('click', function () { setCustomEmoji(e); });
+        grid.appendChild(b);
+      });
+      emojiGridBuilt = true;
+    }
+
+    $('emoji-typed').value = game.custom.emoji;
+    highlightEmoji();
+    openModal('emoji-backdrop');
+  }
+
+  /** Ring the grid button matching the current symbol, if one does. */
+  function highlightEmoji() {
+    var buttons = $('emoji-grid').querySelectorAll('button');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].classList.toggle('sel', game.custom && buttons[i].textContent === game.custom.emoji);
+    }
+  }
+
+  /** Apply a chosen symbol everywhere it appears, without a full re-render. */
+  function setCustomEmoji(value) {
+    if (!game.custom) return;
+    game.custom.emoji = TBC.firstGrapheme(value) || TBC.DEFAULT_CUSTOM_EMOJI;
+    save();
+    $('emoji-typed').value = game.custom.emoji;
+    var btn = $('custom-slot').querySelector('.emojibtn');
+    if (btn) btn.textContent = game.custom.emoji;
+    syncCustomLabels();
+    highlightEmoji();
+  }
+
   function openSettings() {
     $('set-sound').checked = game.settings.sound;
     $('set-fanfare').checked = game.settings.fanfare;
@@ -889,6 +1230,7 @@
 
   $('zone-tractor').addEventListener('click', function () { onTap('tractors'); });
   $('zone-bike').addEventListener('click', function () { onTap('bikes'); });
+  $('zone-custom').addEventListener('click', function () { onTap('custom'); });
   $('undo-btn').addEventListener('click', onUndo);
   $('count-gear').addEventListener('click', openSettings);
   $('finish-btn').addEventListener('click', function () { openModal('confirm-backdrop'); });
@@ -920,8 +1262,20 @@
   });
   $('settings-close').addEventListener('click', function () { closeModal('settings-backdrop'); });
 
+  // Typed symbols apply live, so the field always shows what will be stored.
+  $('emoji-typed').addEventListener('input', function () {
+    var typed = $('emoji-typed').value;
+    if (typed.trim() === '') return; // let them clear it before retyping
+    setCustomEmoji(typed);
+  });
+  $('emoji-close').addEventListener('click', function () {
+    closeModal('emoji-backdrop');
+    // The field may have been left blank; make sure the stored symbol stands.
+    if (game.custom) $('emoji-typed').value = game.custom.emoji;
+  });
+
   // Close a modal by tapping its dark backdrop.
-  ['confirm-backdrop', 'clearstats-backdrop', 'settings-backdrop'].forEach(function (id) {
+  ['confirm-backdrop', 'clearstats-backdrop', 'settings-backdrop', 'emoji-backdrop'].forEach(function (id) {
     $(id).addEventListener('click', function (e) { if (e.target === $(id)) closeModal(id); });
   });
 

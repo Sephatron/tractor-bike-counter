@@ -149,7 +149,8 @@ test('score: tolerates missing/garbage guesses and actual', function () {
   var r = TBC.score(players, undefined);
   assert.strictEqual(r.ranked[0].guessTractors, 0);
   assert.strictEqual(r.ranked[0].total, 0);
-  assert.deepStrictEqual(r.actual, { tractors: 0, bikes: 0 });
+  // actual always reports all three counters; custom reads 0 when there is none.
+  assert.deepStrictEqual(r.actual, { tractors: 0, bikes: 0, custom: 0 });
 });
 
 // ---- Trip history / 30-day scoreboard ---------------------------------------
@@ -342,6 +343,185 @@ test('a record made by makeTripRecord summarises correctly end to end', function
   assert.deepStrictEqual(s.totals, { tractors: 10, bikes: 9 });
   assert.strictEqual(s.leaderboard[0].name, 'Ann'); // Ann is off by 3, Bob by 13
   assert.strictEqual(s.leaderboard[0].wins, 1);
+});
+
+// ---- The optional third counter ---------------------------------------------
+
+// Passenger with a guess for all three counters.
+function player3(id, name, gt, gb, gc) {
+  return { id: id, name: name, colour: '#000', guessTractors: gt, guessBikes: gb, guessCustom: gc };
+}
+
+var COWS = { label: 'Cows', emoji: '🐄' };
+
+test('firstGrapheme keeps one visible emoji, not one UTF-16 unit', function () {
+  assert.strictEqual(TBC.firstGrapheme('🐄'), '🐄');
+  assert.strictEqual(TBC.firstGrapheme('🐄🐑🐎'), '🐄');
+  assert.strictEqual(TBC.firstGrapheme('  🚜  '), '🚜');
+  assert.strictEqual(TBC.firstGrapheme('abc'), 'a');
+  assert.strictEqual(TBC.firstGrapheme(''), '');
+  assert.strictEqual(TBC.firstGrapheme(undefined), '');
+});
+
+// Exercised directly, because the Intl.Segmenter path hides it on modern Node.
+// A silently re-encoded emoji stops matching the picker button it came from,
+// so these must survive byte-for-byte, not merely "look about right".
+[
+  ['🏍️', '🏍️', 'keeps the variation selector'],
+  ['🇬🇧', '🇬🇧', 'keeps both halves of a flag'],
+  ['👍🏽', '👍🏽', 'keeps the skin-tone modifier'],
+  ['👨‍👩‍👧‍👦', '👨‍👩‍👧‍👦', 'keeps a whole ZWJ family'],
+  ['#️⃣', '#️⃣', 'keeps a keycap'],
+  ['🐄🐑', '🐄', 'stops at the second emoji'],
+  ['🚐 caravans', '🚐', 'stops before plain text']
+].forEach(function (c) {
+  test('emoji cluster fallback ' + c[2], function () {
+    assert.strictEqual(TBC.emojiClusterFallback(c[0]), c[1]);
+    // The Segmenter path must agree with the fallback, or the two engines
+    // would store different bytes for the same tap.
+    assert.strictEqual(TBC.firstGrapheme(c[0]), c[1]);
+  });
+});
+
+test('normaliseCustom drops a blank name and defaults the emoji', function () {
+  assert.strictEqual(TBC.normaliseCustom(null), null);
+  assert.strictEqual(TBC.normaliseCustom({ label: '   ', emoji: '🐄' }), null);
+  assert.strictEqual(TBC.normaliseCustom({ emoji: '🐄' }), null);
+  assert.deepStrictEqual(TBC.normaliseCustom({ label: '  Cows  ' }),
+    { label: 'Cows', emoji: TBC.DEFAULT_CUSTOM_EMOJI });
+  assert.deepStrictEqual(TBC.normaliseCustom({ label: 'Cows', emoji: '🐄x' }), COWS);
+});
+
+test('normaliseCustom caps an over-long label', function () {
+  var c = TBC.normaliseCustom({ label: 'a'.repeat(80), emoji: '🐄' });
+  assert.strictEqual(c.label.length, TBC.MAX_LABEL);
+});
+
+test('tapCount and undoCount handle the custom key', function () {
+  var counts = { tractors: 0, bikes: 0, custom: 0 };
+  var history = [];
+  TBC.tapCount(counts, history, 'custom');
+  TBC.tapCount(counts, history, 'tractors');
+  TBC.tapCount(counts, history, 'custom');
+  assert.strictEqual(counts.custom, 2);
+  assert.deepStrictEqual(history, ['custom', 'tractors', 'custom']);
+
+  // Undo walks back in tap order, not in key order.
+  assert.strictEqual(TBC.undoCount(counts, history).undone, 'custom');
+  assert.strictEqual(counts.custom, 1);
+  assert.strictEqual(TBC.undoCount(counts, history).undone, 'tractors');
+  assert.strictEqual(counts.tractors, 0);
+});
+
+test('tapCount still ignores an unknown key', function () {
+  var counts = { tractors: 0, bikes: 0, custom: 0 };
+  var history = [];
+  TBC.tapCount(counts, history, 'unicorns');
+  assert.deepStrictEqual(history, []);
+  assert.deepStrictEqual(counts, { tractors: 0, bikes: 0, custom: 0 });
+});
+
+test('score adds the custom miss to the total and awards a custom champ', function () {
+  var players = [player3('a', 'Ann', 10, 5, 40), player3('b', 'Bob', 10, 5, 20)];
+  var r = TBC.score(players, { tractors: 10, bikes: 5, custom: 25 }, COWS);
+  assert.strictEqual(r.actual.custom, 25);
+  var ann = r.ranked.filter(function (x) { return x.id === 'a'; })[0];
+  var bob = r.ranked.filter(function (x) { return x.id === 'b'; })[0];
+  assert.strictEqual(ann.customDiff, 15);
+  assert.strictEqual(ann.total, 15);
+  assert.strictEqual(bob.customDiff, 5);
+  assert.strictEqual(bob.total, 5);
+  assert.deepStrictEqual(r.customChamps, ['b']);
+  assert.deepStrictEqual(r.overallChamps, ['b']); // custom decides it here
+});
+
+test('score without a custom counter behaves exactly as before', function () {
+  var players = [player3('a', 'Ann', 10, 5, 999)];
+  var r = TBC.score(players, { tractors: 10, bikes: 5, custom: 77 });
+  assert.strictEqual(r.ranked[0].customDiff, 0);
+  assert.strictEqual(r.ranked[0].total, 0);
+  assert.strictEqual(r.actual.custom, 0); // a stale tally must not leak in
+  assert.deepStrictEqual(r.customChamps, []);
+  assert.strictEqual(r.custom, null);
+});
+
+test('score treats a blank-named custom counter as no counter', function () {
+  var players = [player3('a', 'Ann', 0, 0, 5)];
+  var r = TBC.score(players, { tractors: 0, bikes: 0, custom: 30 }, { label: '  ', emoji: '🐄' });
+  assert.strictEqual(r.ranked[0].total, 0);
+  assert.deepStrictEqual(r.customChamps, []);
+});
+
+test('makeTripRecord stores the custom counter and its champs', function () {
+  var players = [player3('a', 'Ann', 10, 5, 40), player3('b', 'Bob', 10, 5, 20)];
+  var rec = TBC.makeTripRecord(players, { tractors: 10, bikes: 5, custom: 25 }, 1000, COWS);
+  assert.deepStrictEqual(rec.custom, { label: 'Cows', emoji: '🐄', count: 25 });
+  assert.deepStrictEqual(rec.customChamps, ['Bob']);
+  assert.deepStrictEqual(rec.overall, ['Bob']);
+  assert.strictEqual(rec.players[0].guessCustom, 20); // Bob ranks first
+  assert.strictEqual(rec.players[0].customDiff, 5);
+});
+
+test('makeTripRecord stores null when there is no custom counter', function () {
+  var rec = TBC.makeTripRecord([player3('a', 'Ann', 1, 1, 1)], { tractors: 1, bikes: 1 }, 1000);
+  assert.strictEqual(rec.custom, null);
+  assert.deepStrictEqual(rec.customChamps, []);
+});
+
+test('summariseTrips groups custom counts by name, not by trip', function () {
+  var now = Date.now();
+  var ann = [player3('a', 'Ann', 0, 0, 0)];
+  var trips = [
+    TBC.makeTripRecord(ann, { tractors: 1, bikes: 0, custom: 10 }, now, COWS),
+    TBC.makeTripRecord(ann, { tractors: 1, bikes: 0, custom: 5 }, now, { label: 'cows', emoji: '🐮' }),
+    TBC.makeTripRecord(ann, { tractors: 1, bikes: 0, custom: 30 }, now, { label: 'Caravans', emoji: '🚐' })
+  ];
+  var s = TBC.summariseTrips(TBC.pruneTrips(trips, now));
+  assert.strictEqual(s.customTotals.length, 2);
+  // Caravans (30) outranks Cows (15), and the two cow spellings merged.
+  assert.strictEqual(s.customTotals[0].label, 'Caravans');
+  assert.strictEqual(s.customTotals[0].count, 30);
+  assert.strictEqual(s.customTotals[1].label, 'Cows'); // first-seen casing wins
+  assert.strictEqual(s.customTotals[1].emoji, '🐄');   // first-seen emoji wins
+  assert.strictEqual(s.customTotals[1].count, 15);
+  assert.strictEqual(s.customTotals[1].trips, 2);
+});
+
+test('summariseTrips counts custom champ wins per person', function () {
+  var now = Date.now();
+  var players = [player3('a', 'Ann', 0, 0, 10), player3('b', 'Bob', 0, 0, 99)];
+  var rec = TBC.makeTripRecord(players, { tractors: 0, bikes: 0, custom: 10 }, now, COWS);
+  var s = TBC.summariseTrips([rec]);
+  var annRow = s.leaderboard.filter(function (e) { return e.name === 'Ann'; })[0];
+  var bobRow = s.leaderboard.filter(function (e) { return e.name === 'Bob'; })[0];
+  assert.strictEqual(annRow.customWins, 1);
+  assert.strictEqual(bobRow.customWins, 0);
+});
+
+test('summariseTrips handles trips stored before the custom counter existed', function () {
+  // Exactly the shape the old code wrote: no custom key anywhere.
+  var old = {
+    at: Date.now(),
+    tractors: 4, bikes: 2,
+    players: [{ name: 'Ann', guessTractors: 4, guessBikes: 2, tractorDiff: 0, bikeDiff: 0, total: 0 }],
+    overall: ['Ann'], tractorChamps: ['Ann'], bikeChamps: ['Ann']
+  };
+  var s = TBC.summariseTrips([old]);
+  assert.deepStrictEqual(s.customTotals, []);
+  assert.strictEqual(s.totals.tractors, 4);
+  assert.strictEqual(s.leaderboard[0].name, 'Ann');
+  assert.strictEqual(s.leaderboard[0].customWins, 0);
+});
+
+test('summariseTrips ignores a custom block with a junk count', function () {
+  var rec = {
+    at: Date.now(), tractors: 0, bikes: 0,
+    custom: { label: 'Cows', emoji: '🐄', count: 'banana' },
+    players: [{ name: 'Ann', total: 0 }],
+    overall: ['Ann'], tractorChamps: [], bikeChamps: [], customChamps: []
+  };
+  var s = TBC.summariseTrips([rec]);
+  assert.strictEqual(s.customTotals[0].count, 0); // never NaN on screen
 });
 
 console.log('\n' + passed + ' passed');

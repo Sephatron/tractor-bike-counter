@@ -20,12 +20,41 @@ runtime, nothing leaves the device.
 Closest guess wins by absolute difference — no "bust" for over-guessing, so
 everyone stays in it to the end.
 
+## The third counter (🐄, or whatever you like)
+
+Any trip can carry **one extra thing to count**. On the setup screen, tap
+**＋ Add a third thing to count**, give it a name ("Cows", "Red cars",
+"Caravans") and tap the symbol button to pick an emoji — either from the grid or
+by typing/pasting your own.
+
+- Every passenger gets a third guess, and the counting screen splits into
+  **three** tap zones instead of two.
+- It earns its own champ title on the reveal, and its miss counts towards the
+  overall winner.
+- **Play again** keeps it, so the next leg counts the same thing. The **✕** on
+  the card removes it and the app goes back to two counters everywhere.
+- Add the counter but leave the **name blank**, and it is quietly dropped when
+  the trip starts — the same rule that drops a blank passenger.
+
+Trips with a third counter show up on the scoreboard under **Other spots**,
+grouped by name: "Cows" spotted on three separate drives is one line, not three.
+
+Note that a trip with three counters produces bigger "off by" numbers than a
+trip with two, so the scoreboard's **avg off by** and **best** figures mix the
+two scales. Who wins a given trip is unaffected, because every passenger on that
+trip is scored against the same counters. The leaderboard, though, breaks ties
+on average miss — so between two people level on wins, whoever sat out the
+three-counter trips carries the smaller average and ranks higher. Left as-is
+deliberately: it only bites on a tie, and wins are the ranking that matters.
+
 ## The scoreboard (📊)
 
 Every finished trip is logged, and the **📊** button — on the setup screen, and
 under "Play again" on the results screen — shows the **last 30 days**:
 
 - **Totals** for the window: trips played, tractors spotted, bikes spotted.
+- **Other spots**: one row per custom counter used in the window, with its
+  emoji, its total and how many trips it ran on. Hidden when there are none.
 - **Leaderboard** ranked by wins, then by average miss. Each row shows trips
   played, average miss and best single-trip miss.
 - **Recent trips**: date, the counts, and who took the trophy.
@@ -94,6 +123,11 @@ Live game state lives in `localStorage` under `tbc.game.v1`, so an accidental
 app/phone close mid-trip never loses the count. The 30-day trip history is a
 separate key, `tbc.stats.v1` — keeping them apart means a corrupt or oversized
 scoreboard can never take a live trip down with it.
+
+The third counter is one nullable field, `custom: {label, emoji}` or `null`, in
+both keys. No storage version was bumped when it was added: `null` is exactly
+what state written before the feature loads as, so a phone mid-trip when the
+update lands keeps counting and old stored trips still render.
 
 If you change any cached file, **bump `CACHE` in `sw.js`**. The service worker
 is cache-first, so without a new cache name an installed phone keeps serving the

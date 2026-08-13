@@ -44,7 +44,7 @@
    * Create a passenger with sensible defaults.
    * @param {string} name Passenger name (trimmed).
    * @param {number} index Roster position, drives the colour.
-   * @returns {{id:string,name:string,colour:string,guessTractors:number,guessBikes:number}}
+   * @returns {{id:string,name:string,colour:string,guessTractors:number,guessBikes:number,guessCustom:number}}
    */
   function createPlayer(name, index) {
     return {
@@ -52,8 +52,104 @@
       name: String(name == null ? '' : name).trim(),
       colour: colourForIndex(index),
       guessTractors: 0,
-      guessBikes: 0
+      guessBikes: 0,
+      guessCustom: 0
     };
+  }
+
+  // ---- The optional third counter -------------------------------------------
+
+  // Matches the passenger name cap, so the two fields wrap the same way.
+  var MAX_LABEL = 18;
+  // Used when a counter is named but no symbol was chosen.
+  var DEFAULT_CUSTOM_EMOJI = '🎯';
+
+  /**
+   * First grapheme cluster of a string, so one *visible* emoji is stored.
+   *
+   * Slicing by string index would cut a surrogate pair in half and a length
+   * check would count 👨‍👩‍👧 as seven. Intl.Segmenter does this properly
+   * wherever it exists; emojiClusterFallback() covers the engines that lack it.
+   *
+   * @param {*} value
+   * @returns {string} A single grapheme, or '' when there is nothing usable.
+   */
+  function firstGrapheme(value) {
+    var str = String(value == null ? '' : value).trim();
+    if (!str) return '';
+    try {
+      if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+        var first = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+          .segment(str)[Symbol.iterator]().next();
+        if (!first.done) return first.value.segment;
+      }
+    } catch (e) { /* fall through to the manual walk */ }
+    return emojiClusterFallback(str);
+  }
+
+  /**
+   * First emoji cluster, walked by hand for engines without Intl.Segmenter.
+   *
+   * Taking only the first code point is not good enough: it turns 🏍️ into a
+   * bare 🏍 by dropping the variation selector, 🇬🇧 into 🇬, and 👍🏽 into a
+   * default-toned 👍. The first two matter beyond looks, because the picker
+   * highlights a grid button by comparing strings — a silently re-encoded
+   * emoji never matches the button it came from.
+   *
+   * @param {string} str Non-empty, already trimmed.
+   * @returns {string}
+   */
+  function emojiClusterFallback(str) {
+    var cps = Array.from ? Array.from(str) : str.split('');
+    if (!cps.length) return '';
+
+    var REGIONAL_LO = 0x1F1E6, REGIONAL_HI = 0x1F1FF;
+    var out = cps[0];
+    var i = 1;
+    var code = out.codePointAt(0);
+
+    // A flag is exactly two regional indicators and never takes a suffix.
+    if (code >= REGIONAL_LO && code <= REGIONAL_HI) {
+      if (i < cps.length) {
+        var next = cps[i].codePointAt(0);
+        if (next >= REGIONAL_LO && next <= REGIONAL_HI) out += cps[i];
+      }
+      return out;
+    }
+
+    while (i < cps.length) {
+      var c = cps[i].codePointAt(0);
+      // Variation selectors, keycap, and skin-tone modifiers attach backwards.
+      if (c === 0xFE0E || c === 0xFE0F || c === 0x20E3 || (c >= 0x1F3FB && c <= 0x1F3FF)) {
+        out += cps[i++];
+        continue;
+      }
+      // A zero-width joiner always binds the code point that follows it.
+      if (c === 0x200D && i + 1 < cps.length) {
+        out += cps[i] + cps[i + 1];
+        i += 2;
+        continue;
+      }
+      break;
+    }
+    return out;
+  }
+
+  /**
+   * Turn raw setup input into a usable third counter, or nothing at all.
+   *
+   * A blank name returns null on purpose: that IS the "no third counter" state,
+   * and it mirrors how a blank passenger is dropped when the trip starts, so
+   * there is only one rule in the app for "you left it empty, so it is gone".
+   *
+   * @param {*} custom Anything shaped like { label, emoji }.
+   * @returns {{label:string,emoji:string}|null}
+   */
+  function normaliseCustom(custom) {
+    if (!custom || typeof custom !== 'object') return null;
+    var label = String(custom.label == null ? '' : custom.label).trim().slice(0, MAX_LABEL);
+    if (label === '') return null;
+    return { label: label, emoji: firstGrapheme(custom.emoji) || DEFAULT_CUSTOM_EMOJI };
   }
 
   /**
@@ -68,17 +164,31 @@
     return n;
   }
 
+  // Every tallyable key, in the order the counting screen stacks them.
+  // 'custom' is only ever tapped when a third counter is configured, but it is
+  // always a legal key so a half-updated cache can never desync tap from undo.
+  var COUNT_KEYS = ['tractors', 'bikes', 'custom'];
+
+  /**
+   * Is this one of the keys the tally understands?
+   * @param {*} type
+   * @returns {boolean}
+   */
+  function isCountKey(type) {
+    return COUNT_KEYS.indexOf(type) !== -1;
+  }
+
   /**
    * Register one tap of a given type. Mutates counts/history in place (the UI
    * holds a single live state object) and returns them for convenience.
    * Unknown types are ignored so a bad call can never corrupt the tally.
-   * @param {{tractors:number,bikes:number}} counts
+   * @param {{tractors:number,bikes:number,custom:number}} counts
    * @param {string[]} history Ordered log of taps, used by undo.
-   * @param {string} type 'tractors' | 'bikes'
+   * @param {string} type 'tractors' | 'bikes' | 'custom'
    * @returns {{counts:object,history:string[]}}
    */
   function tapCount(counts, history, type) {
-    if (type !== 'tractors' && type !== 'bikes') {
+    if (!isCountKey(type)) {
       return { counts: counts, history: history };
     }
     counts[type] = toCount(counts[type]) + 1;
@@ -105,31 +215,44 @@
    * Score every passenger against the real counts.
    *
    * Rules (locked with Joe): closest guess wins by absolute difference.
-   * Three independent titles — tractor, bike, and overall (lowest combined
-   * error). Ties share the title, so every champ field is an array of ids.
+   * Independent titles for each counter, plus overall (lowest combined error).
+   * Ties share the title, so every champ field is an array of ids.
    *
-   * @param {Array} players Roster with guessTractors / guessBikes.
-   * @param {{tractors:number,bikes:number}} actual Real counted totals.
-   * @returns {{ranked:Array,tractorChamps:string[],bikeChamps:string[],overallChamps:string[]}}
+   * When no third counter is configured, every custom field reads as zero and
+   * customChamps comes back empty, so a two-arg call behaves exactly as it did
+   * before the third counter existed.
+   *
+   * @param {Array} players Roster with guessTractors / guessBikes / guessCustom.
+   * @param {{tractors:number,bikes:number,custom:number}} actual Real counted totals.
+   * @param {{label:string,emoji:string}} [custom] The third counter, if any.
+   * @returns {{ranked:Array,actual:object,tractorChamps:string[],bikeChamps:string[],customChamps:string[],overallChamps:string[]}}
    */
-  function score(players, actual) {
+  function score(players, actual, custom) {
+    var active = normaliseCustom(custom);
+
     var safeActual = {
       tractors: toCount(actual && actual.tractors),
-      bikes: toCount(actual && actual.bikes)
+      bikes: toCount(actual && actual.bikes),
+      // A count banked before the counter was removed must not leak into the
+      // score, so an inactive counter reads as zero rather than as its tally.
+      custom: active ? toCount(actual && actual.custom) : 0
     };
 
     var rows = (players || []).map(function (p) {
       var tractorDiff = Math.abs(toCount(p.guessTractors) - safeActual.tractors);
       var bikeDiff = Math.abs(toCount(p.guessBikes) - safeActual.bikes);
+      var customDiff = active ? Math.abs(toCount(p.guessCustom) - safeActual.custom) : 0;
       return {
         id: p.id,
         name: p.name,
         colour: p.colour,
         guessTractors: toCount(p.guessTractors),
         guessBikes: toCount(p.guessBikes),
+        guessCustom: toCount(p.guessCustom),
         tractorDiff: tractorDiff,
         bikeDiff: bikeDiff,
-        total: tractorDiff + bikeDiff
+        customDiff: customDiff,
+        total: tractorDiff + bikeDiff + customDiff
       };
     });
 
@@ -148,8 +271,12 @@
     return {
       ranked: ranked,
       actual: safeActual,
+      custom: active,
       tractorChamps: championsBy('tractorDiff'),
       bikeChamps: championsBy('bikeDiff'),
+      // No third counter means no third title, rather than a title everyone
+      // ties for on a diff of zero.
+      customChamps: active ? championsBy('customDiff') : [],
       overallChamps: championsBy('total')
     };
   }
@@ -205,12 +332,13 @@
    * rather than ids for the reason given on nameKey().
    *
    * @param {Array} players Roster at the moment the trip finished.
-   * @param {{tractors:number,bikes:number}} counts Final counted totals.
+   * @param {{tractors:number,bikes:number,custom:number}} counts Final counted totals.
    * @param {number} atMs Timestamp for the trip (falls back to now if junk).
+   * @param {{label:string,emoji:string}} [custom] The third counter, if any.
    * @returns {object} Plain, JSON-safe trip record.
    */
-  function makeTripRecord(players, counts, atMs) {
-    var r = score(players, counts);
+  function makeTripRecord(players, counts, atMs, custom) {
+    var r = score(players, counts, custom);
 
     var nameById = {};
     (players || []).forEach(function (p) {
@@ -229,19 +357,27 @@
       at: at,
       tractors: r.actual.tractors,
       bikes: r.actual.bikes,
+      // Null rather than absent, so a stored trip always answers "was there a
+      // third counter" without the reader having to know about old shapes.
+      custom: r.custom
+        ? { label: r.custom.label, emoji: r.custom.emoji, count: r.actual.custom }
+        : null,
       players: r.ranked.map(function (row) {
         return {
           name: String(row.name == null ? '' : row.name).trim(),
           guessTractors: row.guessTractors,
           guessBikes: row.guessBikes,
+          guessCustom: row.guessCustom,
           tractorDiff: row.tractorDiff,
           bikeDiff: row.bikeDiff,
+          customDiff: row.customDiff,
           total: row.total
         };
       }),
       overall: namesFor(r.overallChamps),
       tractorChamps: namesFor(r.tractorChamps),
-      bikeChamps: namesFor(r.bikeChamps)
+      bikeChamps: namesFor(r.bikeChamps),
+      customChamps: namesFor(r.customChamps)
     };
   }
 
@@ -285,23 +421,44 @@
    * zeros rather than NaN so the screen can render without special-casing.
    *
    * @param {Array} trips
-   * @returns {{tripCount:number,totals:object,leaderboard:Array,recent:Array}}
+   * @returns {{tripCount:number,totals:object,customTotals:Array,leaderboard:Array,recent:Array}}
    */
   function summariseTrips(trips) {
     var list = (Array.isArray(trips) ? trips : []).filter(function (t) { return t && typeof t === 'object'; });
     var totals = { tractors: 0, bikes: 0 };
     var byKey = {};
     var order = [];
+    // Custom counters roll up by name, not per trip: "Cows" spotted on three
+    // separate drives is one line on the scoreboard, the same way one person
+    // is one leaderboard row across three trips.
+    var customByKey = {};
+    var customOrder = [];
 
     list.forEach(function (trip) {
       totals.tractors += toCount(trip.tractors);
       totals.bikes += toCount(trip.bikes);
 
+      var tripCustom = normaliseCustom(trip.custom);
+      if (tripCustom) {
+        var ckey = nameKey(tripCustom.label);
+        var ce = customByKey[ckey];
+        if (!ce) {
+          // First-seen label casing and emoji win, matching the name rule.
+          ce = customByKey[ckey] = { label: tripCustom.label, emoji: tripCustom.emoji, count: 0, trips: 0 };
+          customOrder.push(ckey);
+        }
+        // Read the count off the raw record: normaliseCustom returns a fresh
+        // {label, emoji} pair and deliberately carries no tally.
+        ce.count += toCount(trip.custom && trip.custom.count);
+        ce.trips += 1;
+      }
+
       // Champion lists are names; turn each into a key set for O(1) lookups.
-      var wonOverall = {}, wonTractor = {}, wonBike = {};
+      var wonOverall = {}, wonTractor = {}, wonBike = {}, wonCustom = {};
       (trip.overall || []).forEach(function (n) { wonOverall[nameKey(n)] = true; });
       (trip.tractorChamps || []).forEach(function (n) { wonTractor[nameKey(n)] = true; });
       (trip.bikeChamps || []).forEach(function (n) { wonBike[nameKey(n)] = true; });
+      (trip.customChamps || []).forEach(function (n) { wonCustom[nameKey(n)] = true; });
 
       // Two passengers can share a name within one trip. Without this, that
       // single trip would count twice against them and hand them two wins.
@@ -322,6 +479,7 @@
             wins: 0,
             tractorWins: 0,
             bikeWins: 0,
+            customWins: 0,
             totalMiss: 0,
             bestMiss: null,
             avgMiss: 0
@@ -336,6 +494,7 @@
         if (wonOverall[key]) e.wins += 1;
         if (wonTractor[key]) e.tractorWins += 1;
         if (wonBike[key]) e.bikeWins += 1;
+        if (wonCustom[key]) e.customWins += 1;
       });
     });
 
@@ -346,13 +505,25 @@
       return e;
     }).sort(function (a, b) {
       if (a.wins !== b.wins) return b.wins - a.wins;           // most wins first
+      // Deliberate wart: a three-counter trip inflates avgMiss, so on a tie the
+      // player who sat those trips out edges ahead. Normalising per counter
+      // would make this number stop matching the "off by" on the reveal screen,
+      // which is the number people actually argue about in the car.
       if (a.avgMiss !== b.avgMiss) return a.avgMiss - b.avgMiss; // then sharpest
       return String(a.name).localeCompare(String(b.name));       // then stable
+    });
+
+    var customTotals = customOrder.map(function (key) {
+      return customByKey[key];
+    }).sort(function (a, b) {
+      if (a.count !== b.count) return b.count - a.count;      // biggest haul first
+      return String(a.label).localeCompare(String(b.label));  // then stable
     });
 
     return {
       tripCount: list.length,
       totals: totals,
+      customTotals: customTotals,
       leaderboard: leaderboard,
       recent: list
     };
@@ -362,11 +533,18 @@
     PLAYER_COLOURS: PLAYER_COLOURS,
     RETENTION_DAYS: RETENTION_DAYS,
     MAX_TRIPS: MAX_TRIPS,
+    MAX_LABEL: MAX_LABEL,
+    COUNT_KEYS: COUNT_KEYS,
+    DEFAULT_CUSTOM_EMOJI: DEFAULT_CUSTOM_EMOJI,
     colourForIndex: colourForIndex,
     colourForName: colourForName,
     makeId: makeId,
     createPlayer: createPlayer,
     toCount: toCount,
+    isCountKey: isCountKey,
+    firstGrapheme: firstGrapheme,
+    emojiClusterFallback: emojiClusterFallback,
+    normaliseCustom: normaliseCustom,
     tapCount: tapCount,
     undoCount: undoCount,
     score: score,
